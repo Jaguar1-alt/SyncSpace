@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import axios from 'axios';
-
-// FIX: Add this line to import the icons
 import { FiSend, FiTrash2 } from 'react-icons/fi';
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
@@ -13,7 +11,7 @@ function ChatBox({ workspaceId, user }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
-  
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -24,27 +22,47 @@ function ChatBox({ workspaceId, user }) {
       try {
         const res = await axios.get(`${API_BASE}/messages/${workspaceId}`, { headers: { Authorization: `Bearer ${token}` } });
         setMessages(res.data);
-      } catch (err) { console.error("Error fetching messages:", err); }
+      } catch (err) {
+        console.error("Error fetching messages:", err);
+      }
     };
     fetchMessages();
-
-    socket.emit("join_workspace", workspaceId);
-    socket.on("receive_message", (message) => setMessages((prev) => [...prev, message]));
-    socket.on("message_deleted", (messageId) => setMessages((prev) => prev.filter((msg) => msg._id !== messageId)));
-    return () => {
-      socket.off("receive_message");
-      socket.off("message_deleted");
-    };
   }, [workspaceId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    socket.emit("join_workspace", workspaceId);
+
+    // Use a function to update state based on previous state
+    const handleReceiveMessage = (message) => {
+      setMessages((prev) => [...prev, message]);
+    };
+    const handleMessageDeleted = (messageId) => {
+      setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("message_deleted", handleMessageDeleted);
+
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("message_deleted", handleMessageDeleted);
+    };
+  }, [workspaceId]); // Clean dependency array
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
 
   const sendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
-    const messageData = { sender: user, workspace: workspaceId, content: newMessage };
+    
+    // Check if user has an _id before sending
+    const messageData = {
+      sender: user,
+      workspace: workspaceId,
+      content: newMessage,
+    };
     socket.emit("send_message", messageData);
     setNewMessage("");
   };
@@ -52,7 +70,12 @@ function ChatBox({ workspaceId, user }) {
   const handleDeleteMessage = (messageId) => {
     if (!window.confirm("Delete this message? This cannot be undone.")) return;
     const token = localStorage.getItem("token");
+    if (!token) return;
     axios.delete(`${API_BASE}/messages/${messageId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(() => {
+        // Optimistically remove the message from the UI
+        setMessages(prev => prev.filter(msg => msg._id !== messageId));
+      })
       .catch(err => console.error("Failed to delete message:", err));
   };
 
