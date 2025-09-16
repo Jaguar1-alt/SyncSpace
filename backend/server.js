@@ -17,8 +17,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = http.createServer(app);
 
+// Use a detailed CORS configuration for Express
 const corsOptions = {
-  origin: "http://localhost:3000",
+  origin: process.env.FRONTEND_URL, // <-- Use the environment variable here
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -31,7 +32,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL, // <-- Use the environment variable here
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
@@ -43,7 +44,7 @@ import taskRoutes from "./routes/task.js";
 import messageRoutes from "./routes/message.js";
 import profileRoutes from "./routes/profile.js";
 import fileRoutes from "./routes/file.js";
-import documentRoutes from "./routes/document.js"; // Import document routes
+import documentRoutes from "./routes/document.js";
 import Message from "./models/Message.js";
 
 app.use("/api/auth", authRoutes);
@@ -52,7 +53,7 @@ app.use("/api/tasks", taskRoutes(io));
 app.use("/api/messages", messageRoutes(io));
 app.use("/api/profile", profileRoutes);
 app.use("/api/files", fileRoutes);
-app.use("/api/documents", documentRoutes); // Use document routes
+app.use("/api/documents", documentRoutes);
 
 // Socket.IO connection event
 io.on("connection", (socket) => {
@@ -76,7 +77,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // New Socket.IO events for documents
   socket.on("join_document", (documentId) => {
     socket.join(documentId);
     console.log(`User ${socket.id} joined document ${documentId}`);
@@ -84,10 +84,7 @@ io.on("connection", (socket) => {
   
   socket.on("document_change", async (data) => {
     try {
-      // Find and update the document in the database
       await Document.findByIdAndUpdate(data.documentId, { content: data.delta });
-
-      // Broadcast the changes to all other clients in the document room
       socket.to(data.documentId).emit("document_update", data.delta);
     } catch (err) {
       console.error("Error updating document:", err.message);
