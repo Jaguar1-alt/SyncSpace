@@ -8,6 +8,7 @@ import http from "http";
 import path from "path";
 import { fileURLToPath } from 'url';
 import Document from "./models/Document.js";
+import Message from "./models/Message.js";
 
 dotenv.config();
 
@@ -17,9 +18,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = http.createServer(app);
 
-// Use a detailed CORS configuration for Express
 const corsOptions = {
-  origin: process.env.FRONTEND_URL, // <-- Use the environment variable here
+  origin: process.env.FRONTEND_URL,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -32,7 +32,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL, // <-- Use the environment variable here
+    origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
@@ -45,7 +45,6 @@ import messageRoutes from "./routes/message.js";
 import profileRoutes from "./routes/profile.js";
 import fileRoutes from "./routes/file.js";
 import documentRoutes from "./routes/document.js";
-import Message from "./models/Message.js";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/workspaces", workspaceRoutes);
