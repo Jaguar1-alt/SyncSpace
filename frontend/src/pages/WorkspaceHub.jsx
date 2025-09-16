@@ -10,12 +10,11 @@ import DocumentsList from "./DocumentsList";
 import DocumentEditor from "./DocumentEditor";
 
 // --- UI ENHANCEMENT: Added more icons for a complete UI ---
-import { FiLayout, FiMessageSquare, FiFileText, FiFolder, FiUsers, FiArrowLeft, FiChevronsLeft } from "react-icons/fi";
+import { FiLayout, FiMessageSquare, FiFileText, FiFolder, FiUsers, FiArrowLeft, FiChevronsLeft, FiMenu, FiX } from "react-icons/fi";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 const BACKEND_BASE = "http://localhost:5000";
 
-// --- UI ENHANCEMENT: Added descriptions for the header ---
 const navItems = [
   { id: "kanban", label: "Kanban Board", icon: <FiLayout size={20} />, description: "Organize tasks and track progress." },
   { id: "chat", label: "Team Chat", icon: <FiMessageSquare size={20} />, description: "Communicate with your team in real-time." },
@@ -34,6 +33,7 @@ function WorkspaceHub() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // New state for mobile sidebar
 
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
@@ -59,6 +59,7 @@ function WorkspaceHub() {
   const handleTabClick = (tabName) => {
     setActiveTab(tabName);
     setSelectedDocumentId(null);
+    setIsSidebarOpen(false); // Close sidebar on tab click
   };
   const handleBackToDocs = () => setSelectedDocumentId(null);
 
@@ -79,24 +80,33 @@ function WorkspaceHub() {
         </div>
       </div>
     );
+  
   }
 
   const activeNavItem = navItems.find(item => item.id === activeTab);
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
-      {/* --- UI ENHANCEMENT: Light sidebar with indigo accent --- */}
-      <aside className="w-64 bg-white text-slate-800 flex flex-col shadow-sm border-r border-slate-200">
+      
+      {/* Mobile Sidebar Toggle Button */}
+      <div className="lg:hidden p-4 absolute top-0 left-0 z-50">
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-md bg-white shadow-md text-slate-600">
+          {isSidebarOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+        </button>
+      </div>
+
+      {/* Sidebar (Responsive) */}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white text-slate-800 flex flex-col shadow-sm border-r border-slate-200 lg:static lg:flex transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-4 border-b border-slate-200 flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-xl">
-                {workspace?.name.charAt(0)}
-            </div>
-            <div>
-                <h1 className="text-base font-bold text-slate-900 truncate">{workspace?.name}</h1>
-                <Link to="/dashboard" className="text-xs text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
-                    <FiChevronsLeft/> All Workspaces
-                </Link>
-            </div>
+          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-xl">
+            {workspace?.name.charAt(0)}
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900 truncate">{workspace?.name}</h1>
+            <Link to="/dashboard" className="text-xs text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
+              <FiChevronsLeft/> All Workspaces
+            </Link>
+          </div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => (
@@ -116,27 +126,27 @@ function WorkspaceHub() {
           ))}
         </nav>
         {user && (
-            <div className="p-4 border-t border-slate-200">
-                <Link to="/profile" className="flex items-center gap-3 group">
-                    <img
-                        src={user.profilePicture ? `${BACKEND_BASE}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user.name}`}
-                        alt="User Profile"
-                        className="w-10 h-10 rounded-full object-cover group-hover:ring-2 group-hover:ring-indigo-400 transition"
-                    />
-                    <div className="flex-1 overflow-hidden">
-                        <p className="font-semibold text-sm truncate text-slate-800">{user.name}</p>
-                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                    </div>
-                </Link>
-            </div>
+          <div className="p-4 border-t border-slate-200">
+            <Link to="/profile" className="flex items-center gap-3 group">
+              <img
+                src={user.profilePicture ? `${BACKEND_BASE}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user.name}`}
+                alt="User Profile"
+                className="w-10 h-10 rounded-full object-cover group-hover:ring-2 group-hover:ring-indigo-400 transition"
+              />
+              <div className="flex-1 overflow-hidden">
+                <p className="font-semibold text-sm truncate text-slate-800">{user.name}</p>
+                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+              </div>
+            </Link>
+          </div>
         )}
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* --- UI ENHANCEMENT: Contextual Header --- */}
-        <header className="px-8 py-4 bg-white/80 backdrop-blur-sm border-b border-slate-200">
-            <h2 className="text-2xl font-bold text-slate-900">{activeNavItem?.label}</h2>
-            <p className="text-sm text-slate-500">{activeNavItem?.description}</p>
+        {/* Main Header */}
+        <header className="px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-slate-200 hidden lg:block">
+          <h2 className="text-2xl font-bold text-slate-900">{activeNavItem?.label}</h2>
+          <p className="text-sm text-slate-500">{activeNavItem?.description}</p>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
@@ -160,7 +170,6 @@ function WorkspaceHub() {
           {activeTab === "members" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {workspace?.members.map((member) => (
-                // --- UI ENHANCEMENT: Refined member card ---
                 <Link to={`/profile/${member._id}`} key={member._id} className="block group">
                   <div className="bg-white p-5 rounded-xl border border-slate-200 group-hover:border-indigo-400 group-hover:shadow-lg transition-all duration-300">
                     <div className="flex items-center gap-4">
