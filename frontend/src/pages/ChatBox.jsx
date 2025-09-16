@@ -1,20 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import io from 'socket.io-client';
-import axios from 'axios';
-import { FiSend, FiTrash2 } from 'react-icons/fi';
+import React, { useState, useEffect, useRef } from "react";
+import io from "socket.io-client";
+import axios from "axios";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "http://localhost:5000";
-const socket = io(BACKEND_BASE);
+const BACKEND_BASE = "https://syncspace-284m.onrender.com"; // <-- CORRECTED URL
+const socket = io(BACKEND_BASE); // <-- INITIALIZE SOCKET.IO WITH THE LIVE URL
 
 function ChatBox({ workspaceId, user }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+  useEffect(() => {
+    socket.emit("join_workspace", workspaceId);
+    socket.on("receive_message", (message) => {
+      const isDuplicate = messages.some((msg) => msg._id === message._id);
+      if (!isDuplicate) { setMessages((prevMessages) => [...prevMessages, message]); }
+    });
+    return () => { socket.off("receive_message"); };
+  }, [workspaceId, messages]);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -22,42 +27,16 @@ function ChatBox({ workspaceId, user }) {
       try {
         const res = await axios.get(`${API_BASE}/messages/${workspaceId}`, { headers: { Authorization: `Bearer ${token}` } });
         setMessages(res.data);
-      } catch (err) {
-        console.error("Error fetching messages:", err);
-      }
+      } catch (err) { console.error("Error fetching messages:", err); }
     };
     fetchMessages();
   }, [workspaceId]);
 
-  useEffect(() => {
-    socket.emit("join_workspace", workspaceId);
-
-    // Use a function to update state based on previous state
-    const handleReceiveMessage = (message) => {
-      setMessages((prev) => [...prev, message]);
-    };
-    const handleMessageDeleted = (messageId) => {
-      setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
-    };
-
-    socket.on("receive_message", handleReceiveMessage);
-    socket.on("message_deleted", handleMessageDeleted);
-
-    return () => {
-      socket.off("receive_message", handleReceiveMessage);
-      socket.off("message_deleted", handleMessageDeleted);
-    };
-  }, [workspaceId]); // Clean dependency array
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages]);
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
-    
-    // Check if user has an _id before sending
+    if (!newMessage.trim()) return;
     const messageData = {
       sender: user,
       workspace: workspaceId,
@@ -72,10 +51,7 @@ function ChatBox({ workspaceId, user }) {
     const token = localStorage.getItem("token");
     if (!token) return;
     axios.delete(`${API_BASE}/messages/${messageId}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(() => {
-        // Optimistically remove the message from the UI
-        setMessages(prev => prev.filter(msg => msg._id !== messageId));
-      })
+      .then(() => { setMessages(prev => prev.filter(msg => msg._id !== messageId)); })
       .catch(err => console.error("Failed to delete message:", err));
   };
 
@@ -84,7 +60,7 @@ function ChatBox({ workspaceId, user }) {
       <div className="flex-grow p-6 overflow-y-auto">
         {messages.map((msg) => (
           <div key={msg._id} className={`group flex items-end gap-3 my-2 ${msg.sender._id === user._id ? "flex-row-reverse" : ""}`}>
-            <img src={msg.sender.profilePicture ? `${BACKEND_BASE}${msg.sender.profilePicture}` : `https://ui-avatars.com/api/?name=${msg.sender.name}`} alt={msg.sender.name} className="w-8 h-8 rounded-full"/>
+            <img src={msg.sender.profilePicture ? `${BACKEND_BASE}${msg.sender.profilePicture}` : "https://upload.wikimedia.org/wikipedia/commons/2/2c/Default_pfp.svg"} alt="Profile" className="w-8 h-8 rounded-full"/>
             <div className={`max-w-md p-3 rounded-2xl ${msg.sender._id === user._id ? "bg-indigo-600 text-white rounded-br-none" : "bg-slate-200 text-slate-800 rounded-bl-none"}`}>
               <p className="text-sm font-semibold">{msg.sender.name}</p>
               <p>{msg.content}</p>
