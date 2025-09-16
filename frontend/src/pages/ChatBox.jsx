@@ -1,25 +1,22 @@
-import React, { useState, useEffect, useRef } from "react";
-import io from "socket.io-client";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
+import axios from 'axios';
+
+// FIX: Add this line to import the icons
+import { FiSend, FiTrash2 } from 'react-icons/fi';
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "https://syncspace-284m.onrender.com"; // <-- CORRECTED URL
-const socket = io(BACKEND_BASE); // <-- INITIALIZE SOCKET.IO WITH THE LIVE URL
+const BACKEND_BASE = "http://localhost:5000";
+const socket = io(BACKEND_BASE);
 
 function ChatBox({ workspaceId, user }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
-  useEffect(() => {
-    socket.emit("join_workspace", workspaceId);
-    socket.on("receive_message", (message) => {
-      const isDuplicate = messages.some((msg) => msg._id === message._id);
-      if (!isDuplicate) { setMessages((prevMessages) => [...prevMessages, message]); }
-    });
-    return () => { socket.off("receive_message"); };
-  }, [workspaceId, messages]);
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -30,18 +27,24 @@ function ChatBox({ workspaceId, user }) {
       } catch (err) { console.error("Error fetching messages:", err); }
     };
     fetchMessages();
+
+    socket.emit("join_workspace", workspaceId);
+    socket.on("receive_message", (message) => setMessages((prev) => [...prev, message]));
+    socket.on("message_deleted", (messageId) => setMessages((prev) => prev.filter((msg) => msg._id !== messageId)));
+    return () => {
+      socket.off("receive_message");
+      socket.off("message_deleted");
+    };
   }, [workspaceId]);
 
-  useEffect(() => { scrollToBottom(); }, [messages]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
-    const messageData = {
-      sender: user,
-      workspace: workspaceId,
-      content: newMessage,
-    };
+    if (!newMessage.trim() || !user) return;
+    const messageData = { sender: user, workspace: workspaceId, content: newMessage };
     socket.emit("send_message", messageData);
     setNewMessage("");
   };
@@ -49,9 +52,7 @@ function ChatBox({ workspaceId, user }) {
   const handleDeleteMessage = (messageId) => {
     if (!window.confirm("Delete this message? This cannot be undone.")) return;
     const token = localStorage.getItem("token");
-    if (!token) return;
     axios.delete(`${API_BASE}/messages/${messageId}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(() => { setMessages(prev => prev.filter(msg => msg._id !== messageId)); })
       .catch(err => console.error("Failed to delete message:", err));
   };
 
@@ -60,7 +61,7 @@ function ChatBox({ workspaceId, user }) {
       <div className="flex-grow p-6 overflow-y-auto">
         {messages.map((msg) => (
           <div key={msg._id} className={`group flex items-end gap-3 my-2 ${msg.sender._id === user._id ? "flex-row-reverse" : ""}`}>
-            <img src={msg.sender.profilePicture ? `${BACKEND_BASE}${msg.sender.profilePicture}` : "https://upload.wikimedia.org/wikipedia/commons/2/2c/Default_pfp.svg"} alt="Profile" className="w-8 h-8 rounded-full"/>
+            <img src={msg.sender.profilePicture ? `${BACKEND_BASE}${msg.sender.profilePicture}` : `https://ui-avatars.com/api/?name=${msg.sender.name}`} alt={msg.sender.name} className="w-8 h-8 rounded-full"/>
             <div className={`max-w-md p-3 rounded-2xl ${msg.sender._id === user._id ? "bg-indigo-600 text-white rounded-br-none" : "bg-slate-200 text-slate-800 rounded-bl-none"}`}>
               <p className="text-sm font-semibold">{msg.sender.name}</p>
               <p>{msg.content}</p>
