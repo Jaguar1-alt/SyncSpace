@@ -26,7 +26,11 @@ const UserSchema = new mongoose.Schema(
     },
     profilePicture: {
       type: String,
-      default: "", // Default empty string or a placeholder image URL
+      default: "",
+    },
+    title: { // <-- New field for user's title
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

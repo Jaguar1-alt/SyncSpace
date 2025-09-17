@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 function Profile() {
   const { userId } = useParams();
@@ -13,6 +13,7 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [newTitle, setNewTitle] = useState(""); // New state for the title
   const navigate = useNavigate();
 
   const isCurrentUser = !userId;
@@ -63,6 +64,25 @@ function Profile() {
     }
   };
 
+  const handleUpdateTitle = async () => {
+      const token = localStorage.getItem("token");
+      if (!newTitle.trim() || !token) {
+          alert("Title cannot be empty.");
+          return;
+      }
+      try {
+          const res = await axios.put(`${API_BASE}/auth/me`, { title: newTitle }, {
+              headers: { Authorization: `Bearer ${token}` }
+          });
+          setUser(res.data);
+          alert("Title updated successfully!");
+          setNewTitle("");
+      } catch (err) {
+          alert("Failed to update title.");
+          console.error(err);
+      }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
@@ -86,17 +106,35 @@ function Profile() {
           <h3 className="mt-4 text-2xl font-semibold text-gray-800">{user?.name}</h3>
           <p className="text-gray-600">{user?.email}</p>
           <p className="text-sm text-gray-500">Role: {user?.role}</p>
+          <p className="text-sm text-gray-500">{user?.title || "No title set"}</p>
         </div>
         {isCurrentUser && (
-          <div className="border-t pt-6">
-            <h4 className="text-xl font-semibold mb-4">Update Profile Picture</h4>
-            <div className="flex items-center gap-4">
-              <input type="file" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-              <button onClick={handleUpload} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg" disabled={!file || uploading}>
-                {uploading ? "Uploading..." : "Upload"}
-              </button>
+          <>
+            <div className="border-t pt-6">
+              <h4 className="text-xl font-semibold mb-4">Update Profile Picture</h4>
+              <div className="flex items-center gap-4">
+                <input type="file" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                <button onClick={handleUpload} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg" disabled={!file || uploading}>
+                  {uploading ? "Uploading..." : "Upload"}
+                </button>
+              </div>
             </div>
-          </div>
+            <div className="border-t pt-6 mt-6">
+              <h4 className="text-xl font-semibold mb-4">Update Job Title</h4>
+              <div className="flex items-center gap-4">
+                  <input
+                      type="text"
+                      placeholder={user?.title || "e.g., Frontend Developer"}
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      className="flex-grow border border-gray-300 rounded-lg px-4 py-2"
+                  />
+                  <button onClick={handleUpdateTitle} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                      Update
+                  </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -6,7 +6,7 @@ import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Register User
+// ✅ Register User
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -24,7 +24,6 @@ router.post("/register", async (req, res) => {
     });
     await user.save();
     
-    // FIX: Add the user's role to the JWT payload
     const payload = {
       user: { 
         id: user.id,
@@ -42,7 +41,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login User
+// ✅ Login User
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -55,7 +54,6 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
-    // FIX: Add the user's role to the JWT payload
     const payload = {
       user: { 
         id: user.id,
@@ -73,7 +71,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Get User Info (protected)
+// ✅ Get Current User Info (protected)
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -87,6 +85,7 @@ router.get("/me", auth, async (req, res) => {
   }
 });
 
+// ✅ Get User by ID (protected)
 router.get("/:id", auth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
@@ -96,6 +95,25 @@ router.get("/:id", auth, async (req, res) => {
     res.json(user);
   } catch (err) {
     console.error("Get user by ID error:", err.message);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// ✅ Update User Profile
+router.put("/me", auth, async (req, res) => {
+  try {
+    const { name, title } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.user.id, 
+      { name, title }, 
+      { new: true }
+    ).select("-password");
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    console.error("Profile update error:", err.message);
     res.status(500).json({ msg: "Server error" });
   }
 });
