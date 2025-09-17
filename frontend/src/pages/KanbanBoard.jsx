@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import io from "socket.io-client";
-import { FiTrash2 } from "react-icons/fi"; // Import the delete icon
+import { FiTrash2 } from "react-icons/fi";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
 const socket = io(BACKEND_BASE);
 
 function KanbanBoard({ workspaceId }) {
@@ -17,6 +17,7 @@ function KanbanBoard({ workspaceId }) {
   const [members, setMembers] = useState([]);
   const [user, setUser] = useState(null);
 
+  // Fetch workspace details and user info
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
       const token = localStorage.getItem("token");
@@ -37,6 +38,7 @@ function KanbanBoard({ workspaceId }) {
     fetchWorkspaceDetails();
   }, [workspaceId]);
 
+  // Socket.IO real-time updates (The correct way to handle auto-refresh)
   useEffect(() => {
     socket.emit("join_workspace", workspaceId);
     socket.on("task_created", (newTask) => {
@@ -57,6 +59,7 @@ function KanbanBoard({ workspaceId }) {
     };
   }, [workspaceId]);
 
+  // Initial fetch on component mount
   useEffect(() => {
     const token = localStorage.getItem("token");
     const fetchTasks = async () => {
@@ -75,6 +78,7 @@ function KanbanBoard({ workspaceId }) {
     fetchTasks();
   }, [workspaceId]);
 
+  // Drag and drop handler
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination || destination.droppableId === source.droppableId) return;
@@ -154,9 +158,7 @@ function KanbanBoard({ workspaceId }) {
 
   return (
     <div>
-      {/* This is the line that has been changed */}
-      <h3 className="text-3xl font-bold mb-4 text-center">Kanban Board</h3>
-      
+      <h3 className="text-3xl font-bold mb-4">Kanban Board</h3>
       {user && user.role === "admin" && (
         <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-sm">
           <h4 className="text-xl font-semibold text-gray-800 mb-4">Create a New Task</h4>
@@ -220,16 +222,16 @@ function KanbanBoard({ workspaceId }) {
                             className="bg-white shadow rounded-lg p-4 mb-3"
                           >
                             <div className="flex justify-between items-center mb-2">
-                              <h4 className="font-bold">{task.title}</h4>
-                              {user && user.role === "admin" && (
-                                  <button
-                                    onClick={() => handleDeleteTask(task._id)}
-                                    className="text-red-500 hover:text-red-700"
-                                    title="Delete Task"
-                                  >
-                                    <FiTrash2 size={16} />
-                                  </button>
-                              )}
+                                <h4 className="font-bold">{task.title}</h4>
+                                {user && user.role === "admin" && (
+                                    <button
+                                      onClick={() => handleDeleteTask(task._id)}
+                                      className="text-red-500 hover:text-red-700"
+                                      title="Delete Task"
+                                    >
+                                      <FiTrash2 size={16} />
+                                    </button>
+                                )}
                             </div>
                             <p className="text-sm text-gray-600">{task.description}</p>
                             {task.assignedTo && task.assignedTo.length > 0 && (
