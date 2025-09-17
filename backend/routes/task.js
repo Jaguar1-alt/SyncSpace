@@ -1,4 +1,3 @@
-// backend/routes/task.js
 import express from "express";
 import Task from "../models/Task.js";
 import authMiddleware from "../middleware/auth.js";
@@ -7,7 +6,7 @@ import mongoose from "mongoose";
 const createRouter = (io) => {
   const router = express.Router();
 
-  // Create a new task (remains accessible to all members)
+  // ✅ Create a new task (remains accessible to all members)
   router.post("/", authMiddleware, async (req, res) => {
     try {
       const { title, description, workspaceId, assignedTo } = req.body;
@@ -19,6 +18,10 @@ const createRouter = (io) => {
         createdBy: req.user.id,
       });
       await task.save();
+
+      // FIX: Populate the task before emitting the event
+      await task.populate("assignedTo createdBy", "name email");
+
       io.to(workspaceId).emit("task_created", task);
       res.status(201).json(task);
     } catch (err) {
@@ -26,7 +29,7 @@ const createRouter = (io) => {
     }
   });
 
-  // Get all tasks for a specific workspace
+  // ✅ Get all tasks for a specific workspace
   router.get("/:workspaceId", authMiddleware, async (req, res) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(req.params.workspaceId)) {
@@ -40,7 +43,7 @@ const createRouter = (io) => {
     }
   });
 
-  // Update a task (e.g., change status, assign to user)
+  // ✅ Update a task (e.g., change status, assign to user)
   router.put("/:taskId", authMiddleware, async (req, res) => {
     try {
       const { status, assignedTo } = req.body;
@@ -52,6 +55,10 @@ const createRouter = (io) => {
       if (!task) {
         return res.status(404).json({ msg: "Task not found" });
       }
+
+      // FIX: Populate the task before emitting the event
+      await task.populate("assignedTo createdBy", "name email");
+
       io.to(task.workspace.toString()).emit("task_updated", task);
       res.json(task);
     } catch (err) {
@@ -59,7 +66,7 @@ const createRouter = (io) => {
     }
   });
 
-  // Delete a task
+  // ✅ Delete a task
   router.delete("/:taskId", authMiddleware, async (req, res) => {
     try {
       const task = await Task.findByIdAndDelete(req.params.taskId);

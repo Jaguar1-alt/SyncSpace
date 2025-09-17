@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 function FileManagement({ workspaceId }) {
   const [files, setFiles] = useState([]);
@@ -10,7 +10,7 @@ function FileManagement({ workspaceId }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null); // State to hold the current user
+  const [user, setUser] = useState(null);
 
   const fetchFiles = async () => {
     const token = localStorage.getItem("token");
@@ -30,7 +30,6 @@ function FileManagement({ workspaceId }) {
   };
 
   useEffect(() => {
-    // Fetch the current user's details on component mount
     const fetchCurrentUser = async () => {
       const token = localStorage.getItem("token");
       try {
@@ -68,7 +67,7 @@ function FileManagement({ workspaceId }) {
           Authorization: `Bearer ${token}`,
         },
       });
-      await fetchFiles(); // Re-fetch files to update the list
+      await fetchFiles();
       setFileToUpload(null);
       alert("File uploaded successfully!");
     } catch (err) {
@@ -131,7 +130,7 @@ function FileManagement({ workspaceId }) {
 
   return (
     <div>
-      <h3 className="text-3xl font-bold mb-4">Project Files</h3>
+      <h3 className="text-3xl font-bold mb-4 text-center">Project Files</h3>
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h4 className="text-xl font-semibold mb-4">Upload New File</h4>
         <div className="flex flex-col sm:flex-row gap-4">

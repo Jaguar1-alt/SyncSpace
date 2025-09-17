@@ -45,7 +45,7 @@ function DocumentsList({ workspaceId, onDocumentSelect }) {
 
   return (
     <div>
-      <h3 className="text-3xl font-bold mb-4">Documents</h3>
+      <h3 className="text-3xl font-bold mb-4 text-center">Documents</h3>
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h4 className="text-xl font-semibold mb-4">Create New Document</h4>
         <div className="flex flex-col sm:flex-row gap-4">

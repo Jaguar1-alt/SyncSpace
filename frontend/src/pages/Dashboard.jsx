@@ -1,23 +1,22 @@
+// src/pages/Dashboard.jsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import { 
-    FiLogOut, FiPlus, FiLink, FiCopy, FiAlertCircle, 
-    FiCheckCircle, FiArrowRight, FiLoader, FiInbox 
+import {
+    FiLogOut, FiCopy, FiAlertCircle,
+    FiCheckCircle, FiArrowRight, FiInbox, FiUsers, FiTrash, FiEdit
 } from 'react-icons/fi';
+import Modal from "../components/Modal"; // Corrected import path
 
-// --- Constants (Centralized for easy configuration) ---
+// --- Constants ---
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 // =================================================================================
-// --- Reusable UI Components ---
-// In a real project, these would be in their own files (e.g., /components/Header.js)
+// --- UI Components ---
 // =================================================================================
 
-/**
- * @description Application header with user profile and logout button.
- */
 const Header = ({ user, onLogout }) => (
     <header className="bg-white/90 backdrop-blur-lg shadow-sm sticky top-0 z-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
@@ -31,7 +30,7 @@ const Header = ({ user, onLogout }) => (
                             {user?.username}
                         </span>
                         <img
-                            src={user?.profilePicture ? `${BACKEND_BASE}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user?.username || 'U'}&background=c7d2fe&color=3730a3`}
+                            src={user?.profilePicture ? `${BACKEND_BASE}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user?.name || 'U'}&background=c7d2fe&color=3730a3`}
                             alt="Profile"
                             className="w-10 h-10 rounded-full object-cover ring-2 ring-offset-2 ring-transparent group-hover:ring-indigo-500 transition-all duration-300"
                         />
@@ -49,10 +48,7 @@ const Header = ({ user, onLogout }) => (
     </header>
 );
 
-/**
- * @description A card representing a single workspace.
- */
-const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite }) => {
+const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite, onUpdate, onDelete }) => {
     const inviteLink = `${window.location.origin}/join/${workspace._id}`;
 
     return (
@@ -61,8 +57,9 @@ const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite }) => {
                 <h3 className="text-xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">
                     {workspace.name}
                 </h3>
-                <p className="text-slate-500 mt-2 text-sm">
-                    View documents and collaborate with your team.
+                <p className="text-slate-500 mt-2 text-sm flex items-center gap-2">
+                    <FiUsers size={14} className="text-indigo-500" />
+                    <span>{workspace.memberCount} Members</span>
                 </p>
             </div>
             <div className="border-t border-slate-200 bg-slate-50/50 p-4 flex justify-between items-center rounded-b-xl">
@@ -73,23 +70,39 @@ const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite }) => {
                     Open Workspace <FiArrowRight />
                 </Link>
                 {isAdmin && (
-                    <button
-                        onClick={() => onCopyInvite(inviteLink)}
-                        aria-label="Copy invite link"
-                        className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 rounded-md px-3 py-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                    >
-                        <FiCopy size={14} />
-                        <span className="hidden sm:inline">Copy Invite</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => onUpdate(workspace)}
+                            className="text-slate-500 hover:text-blue-500 transition"
+                            title="Update name"
+                        >
+                            <FiEdit size={16} />
+                        </button>
+                        <button
+                            onClick={() => onDelete(workspace)}
+                            className="text-slate-500 hover:text-red-500 transition"
+                            title="Delete workspace"
+                        >
+                            <FiTrash size={16} />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                onCopyInvite(inviteLink);
+                            }}
+                            aria-label="Copy invite link"
+                            className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 rounded-md px-3 py-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
+                        >
+                            <FiCopy size={14} />
+                            <span className="hidden sm:inline">Copy Invite</span>
+                        </button>
+                    </div>
                 )}
             </div>
         </div>
     );
 };
 
-/**
- * @description Animated toast notification for user feedback.
- */
 const Toast = ({ message, type, show }) => {
     const [isVisible, setIsVisible] = useState(false);
 
@@ -97,7 +110,6 @@ const Toast = ({ message, type, show }) => {
         if (show) {
             setIsVisible(true);
         } else {
-            // Delay hiding to allow for exit animation
             const timer = setTimeout(() => setIsVisible(false), 300);
             return () => clearTimeout(timer);
         }
@@ -109,8 +121,8 @@ const Toast = ({ message, type, show }) => {
     const errorStyles = 'bg-red-500 border-red-600';
 
     return (
-        <div 
-            className={`fixed top-5 right-5 z-50 flex items-center p-4 rounded-lg shadow-2xl text-white border-2 transition-all duration-300 ease-in-out
+        <div
+            className={`fixed top-5 right-5 z-[100] flex items-center p-4 rounded-lg shadow-2xl text-white border-2 transition-all duration-300 ease-in-out
                 ${type === 'success' ? successStyles : errorStyles}
                 ${show ? 'transform translate-y-0 opacity-100' : 'transform -translate-y-5 opacity-0'}`}
         >
@@ -120,9 +132,6 @@ const Toast = ({ message, type, show }) => {
     );
 };
 
-/**
- * @description Panel for joining or creating workspaces.
- */
 const ActionPanel = ({ onJoin, onAdminCreate, isAdmin }) => {
     const [inviteLink, setInviteLink] = useState("");
     const [workspaceName, setWorkspaceName] = useState("");
@@ -180,9 +189,6 @@ const ActionPanel = ({ onJoin, onAdminCreate, isAdmin }) => {
     );
 };
 
-/**
- * @description A grid of skeleton loaders for the workspace cards.
- */
 const WorkspaceGridSkeleton = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(3)].map((_, i) => (
@@ -196,9 +202,6 @@ const WorkspaceGridSkeleton = () => (
     </div>
 );
 
-/**
- * @description A message shown when the user has no workspaces.
- */
 const EmptyState = () => (
     <div className="text-center py-16 border-2 border-dashed border-slate-300 rounded-lg bg-white">
         <FiInbox className="mx-auto h-12 w-12 text-slate-400" />
@@ -207,20 +210,24 @@ const EmptyState = () => (
     </div>
 );
 
-
 // =================================================================================
 // --- Main Dashboard Component ---
 // =================================================================================
 
 function Dashboard() {
-    // --- State Management ---
     const [workspaces, setWorkspaces] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
     const navigate = useNavigate();
 
-    // --- Side Effects ---
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [workspaceToDelete, setWorkspaceToDelete] = useState(null);
+
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [workspaceToUpdate, setWorkspaceToUpdate] = useState(null);
+    const [newWorkspaceName, setNewWorkspaceName] = useState("");
+
     const fetchDashboardData = useCallback(async (token) => {
         try {
             const [userRes, workspacesRes] = await Promise.all([
@@ -248,7 +255,6 @@ function Dashboard() {
         fetchDashboardData(token);
     }, [fetchDashboardData, navigate]);
 
-    // --- Helper Functions & Event Handlers ---
     const showToast = (message, type = 'error') => {
         setToast({ show: true, message, type });
         setTimeout(() => setToast({ show: false, message: '', type: 'error' }), 3000);
@@ -280,13 +286,11 @@ function Dashboard() {
             showToast("Please paste a valid invite link.");
             return;
         }
-
         const inviteCode = inviteLink.split("/").pop();
         if (!inviteCode) {
             showToast("Invalid invite link format.");
             return;
         }
-
         try {
             const res = await axios.post(
                 `${API_BASE}/workspaces/join/${inviteCode}`, {},
@@ -308,12 +312,70 @@ function Dashboard() {
         });
     };
 
+    const openUpdateModal = (workspace) => {
+        setWorkspaceToUpdate(workspace);
+        setNewWorkspaceName(workspace.name);
+        setIsUpdateModalOpen(true);
+    };
+    const closeUpdateModal = () => {
+        setIsUpdateModalOpen(false);
+        setWorkspaceToUpdate(null);
+        setNewWorkspaceName("");
+    };
+    const confirmUpdateWorkspace = async (e) => {
+        e.preventDefault();
+        if (!workspaceToUpdate || !newWorkspaceName.trim()) {
+            showToast("Workspace name cannot be empty.");
+            return;
+        }
+        const token = localStorage.getItem("token");
+        try {
+            const res = await axios.put(
+                `${API_BASE}/workspaces/${workspaceToUpdate._id}`,
+                { name: newWorkspaceName.trim() },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setWorkspaces(prev => prev.map(ws =>
+                ws._id === workspaceToUpdate._id ? { ...ws, name: res.data.name } : ws
+            ));
+            showToast("Workspace name updated!", "success");
+        } catch (err) {
+            showToast(err.response?.data?.msg || "Failed to update workspace name.");
+        } finally {
+            closeUpdateModal();
+        }
+    };
+
+    const openDeleteModal = (workspace) => {
+        setWorkspaceToDelete(workspace);
+        setIsDeleteModalOpen(true);
+    };
+    const closeDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setWorkspaceToDelete(null);
+    };
+    const confirmDeleteWorkspace = async () => {
+        if (!workspaceToDelete) return;
+        const token = localStorage.getItem("token");
+        try {
+            await axios.delete(
+                `${API_BASE}/workspaces/${workspaceToDelete._id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setWorkspaces(prev => prev.filter(ws => ws._id !== workspaceToDelete._id));
+            showToast("Workspace deleted successfully!", "success");
+        } catch (err) {
+            showToast(err.response?.data?.msg || "Failed to delete workspace.");
+        } finally {
+            closeDeleteModal();
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem("token");
         navigate("/login");
     };
 
-    // --- Render Logic ---
     const renderWorkspaceContent = () => {
         if (loading) {
             return <WorkspaceGridSkeleton />;
@@ -329,6 +391,8 @@ function Dashboard() {
                         workspace={ws}
                         isAdmin={user?.role === "admin"}
                         onCopyInvite={copyToClipboard}
+                        onUpdate={openUpdateModal}
+                        onDelete={openDeleteModal}
                     />
                 ))}
             </div>
@@ -341,7 +405,7 @@ function Dashboard() {
             <Toast message={toast.message} type={toast.type} show={toast.show} />
 
             <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-                <ActionPanel 
+                <ActionPanel
                     onJoin={handleJoinByLink}
                     onAdminCreate={handleCreateWorkspace}
                     isAdmin={user?.role === "admin"}
@@ -354,8 +418,69 @@ function Dashboard() {
                     {renderWorkspaceContent()}
                 </section>
             </main>
+
+            <Modal
+                isOpen={isDeleteModalOpen}
+                onClose={closeDeleteModal}
+                title="Delete Workspace"
+            >
+                <p className="text-slate-600">
+                    Are you sure you want to delete the workspace{' '}
+                    <strong className="text-slate-800">{workspaceToDelete?.name}</strong>?
+                    This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-3 mt-6">
+                    <button
+                        onClick={closeDeleteModal}
+                        className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md hover:bg-slate-300 transition"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={confirmDeleteWorkspace}
+                        className="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isUpdateModalOpen}
+                onClose={closeUpdateModal}
+                title="Update Workspace Name"
+            >
+                <form onSubmit={confirmUpdateWorkspace}>
+                    <label htmlFor="new-name" className="block text-sm font-medium text-slate-700 mb-1.5">
+                        Workspace Name
+                    </label>
+                    <input
+                        id="new-name"
+                        type="text"
+                        value={newWorkspaceName}
+                        onChange={(e) => setNewWorkspaceName(e.target.value)}
+                        className="w-full border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        autoFocus
+                    />
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button
+                            type="button"
+                            onClick={closeUpdateModal}
+                            className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md hover:bg-slate-300 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition"
+                        >
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
-}
+};
 
 export default Dashboard;

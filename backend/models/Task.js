@@ -1,4 +1,3 @@
-// backend/models/Task.js
 import mongoose from "mongoose";
 
 const TaskSchema = new mongoose.Schema(
@@ -22,10 +21,12 @@ const TaskSchema = new mongoose.Schema(
       ref: "Workspace",
       required: true,
     },
-    assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // This links the task to a specific user
-    },
+    assignedTo: [ // <-- Corrected to be an array
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

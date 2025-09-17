@@ -13,7 +13,7 @@ import DocumentEditor from "./DocumentEditor";
 import { FiLayout, FiMessageSquare, FiFileText, FiFolder, FiUsers, FiArrowLeft, FiChevronsLeft, FiMenu, FiX } from "react-icons/fi";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 const navItems = [
   { id: "kanban", label: "Kanban Board", icon: <FiLayout size={20} />, description: "Organize tasks and track progress." },
@@ -33,7 +33,7 @@ function WorkspaceHub() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // New state for mobile sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
@@ -59,7 +59,7 @@ function WorkspaceHub() {
   const handleTabClick = (tabName) => {
     setActiveTab(tabName);
     setSelectedDocumentId(null);
-    setIsSidebarOpen(false); // Close sidebar on tab click
+    setIsSidebarOpen(false);
   };
   const handleBackToDocs = () => setSelectedDocumentId(null);
 
@@ -80,7 +80,6 @@ function WorkspaceHub() {
         </div>
       </div>
     );
-  
   }
 
   const activeNavItem = navItems.find(item => item.id === activeTab);
@@ -97,17 +96,15 @@ function WorkspaceHub() {
 
       {/* Sidebar (Responsive) */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white text-slate-800 flex flex-col shadow-sm border-r border-slate-200 lg:static lg:flex transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        {/* Workspace Header */}
         <div className="p-4 border-b border-slate-200 flex items-center gap-3">
           <div className="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-xl">
             {workspace?.name.charAt(0)}
           </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 truncate">{workspace?.name}</h1>
-            <Link to="/dashboard" className="text-xs text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
-              <FiChevronsLeft/> All Workspaces
-            </Link>
-          </div>
+          <h1 className="text-base font-bold text-slate-900 truncate">{workspace?.name}</h1>
         </div>
+
+        {/* Main Navigation */}
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => (
             <button
@@ -125,21 +122,33 @@ function WorkspaceHub() {
             </button>
           ))}
         </nav>
-        {user && (
-          <div className="p-4 border-t border-slate-200">
-            <Link to="/profile" className="flex items-center gap-3 group">
+
+        {/* --- Sidebar Footer (New Section) --- */}
+        <div className="p-3 border-t border-slate-200 space-y-1">
+          {/* "All Workspaces" Button */}
+          <Link
+            to="/dashboard"
+            className="flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          >
+            <FiChevronsLeft size={20} />
+            <span>All Workspaces</span>
+          </Link>
+          
+          {/* User Profile Link */}
+          {user && (
+            <Link to="/profile" className="flex items-center gap-3 group p-2 rounded-lg hover:bg-slate-100">
               <img
                 src={user.profilePicture ? `${BACKEND_BASE}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user.name}`}
                 alt="User Profile"
-                className="w-10 h-10 rounded-full object-cover group-hover:ring-2 group-hover:ring-indigo-400 transition"
+                className="w-10 h-10 rounded-full object-cover group-hover:ring-2 group-hover:ring-indigo-100 transition"
               />
               <div className="flex-1 overflow-hidden">
                 <p className="font-semibold text-sm truncate text-slate-800">{user.name}</p>
-                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+               
               </div>
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
