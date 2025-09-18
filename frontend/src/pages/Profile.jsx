@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom"; // Link is now used
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
@@ -13,7 +13,7 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
-  const [newTitle, setNewTitle] = useState(""); // New state for the title
+  const [newTitle, setNewTitle] = useState("");
   const navigate = useNavigate();
 
   const isCurrentUser = !userId;
@@ -96,7 +96,9 @@ function Profile() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-md mx-auto bg-white shadow-lg rounded-xl p-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">Profile Page</h2>
+          <Link to="/dashboard" className="text-blue-600 hover:underline">
+            ← Back to Dashboard
+          </Link>
           {isCurrentUser && (
             <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
           )}
