@@ -158,7 +158,7 @@ function KanbanBoard({ workspaceId }) {
 
   return (
     <div>
-      <h3 className="text-3xl font-bold mb-4">Kanban Board</h3>
+      <h3 className="text-3xl font-bold mb-4 text-center">Kanban Board</h3>
       {user && user.role === "admin" && (
         <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-sm">
           <h4 className="text-xl font-semibold text-gray-800 mb-4">Create a New Task</h4>

@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
@@ -7,17 +6,18 @@ import Dashboard from "./pages/Dashboard";
 import JoinWorkspace from "./pages/JoinWorkspace";
 import WorkspaceHub from "./pages/WorkspaceHub";
 import Profile from "./pages/Profile";
-import Welcome from "./pages/Welcome"; // Import the new Welcome component
+import Welcome from "./pages/Welcome";
 
 function App() {
+  const token = localStorage.getItem("token");
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
         <Routes>
-          {/* Change the default route to the Welcome page */}
-          <Route path="/" element={<Welcome />} />
+          {/* If a token exists, redirect to dashboard. Otherwise, show the Welcome page. */}
+          <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <Welcome />} />
           
-          {/* Authentication and other protected routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
