@@ -1,30 +1,88 @@
-// src/pages/Dashboard.jsx
-
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import {
-    FiLogOut, FiCopy, FiAlertCircle,
-    FiCheckCircle, FiArrowRight, FiInbox, FiUsers, FiTrash, FiEdit
+import { 
+    FiLogOut, FiCopy, FiAlertCircle, 
+    FiCheckCircle, FiArrowRight, FiInbox, FiUsers, FiTrash, FiEdit,
+    FiPlusCircle, FiLink, FiBell, FiX
 } from 'react-icons/fi';
-import Modal from "../components/Modal"; // Corrected import path
+import Modal from "../components/Modal"; 
+import io from 'socket.io-client';
 
-// --- Constants ---
+// --- Constants (Centralized for easy configuration) ---
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 const BACKEND_BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 // =================================================================================
-// --- UI Components ---
+// --- Reusable UI Components ---
 // =================================================================================
 
-const Header = ({ user, onLogout }) => (
+/**
+ * @description Notifications dropdown component.
+ */
+const NotificationsDropdown = ({ notifications, onMarkAsRead, onClose }) => {
+  const unreadNotifications = notifications.filter(n => !n.readStatus);
+
+  return (
+    <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h4 className="text-lg font-bold">Notifications ({unreadNotifications.length})</h4>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
+              <FiX size={20} />
+          </button>
+      </div>
+      <div className="py-2">
+        <div className="max-h-80 overflow-y-auto">
+          {notifications.length === 0 ? (
+            <p className="text-center text-gray-500 text-sm p-4">No new notifications.</p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {notifications.map(notif => (
+                <li 
+                  key={notif._id} 
+                  className={`flex items-start p-4 transition-colors ${!notif.readStatus ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  <div className="flex-grow">
+                    <p className="text-sm">{notif.message}</p>
+                    <span className="text-xs text-gray-500">{new Date(notif.createdAt).toLocaleString()}</span>
+                    {!notif.readStatus && (
+                      <button onClick={() => onMarkAsRead(notif._id)} className="ml-2 text-xs text-blue-500 hover:underline">
+                        Mark as Read
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * @description Application header with user profile and logout button.
+ */
+const Header = ({ user, onLogout, unreadCount, onToggleNotifications }) => (
     <header className="bg-white/90 backdrop-blur-lg shadow-sm sticky top-0 z-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center">
                 <Link to="/dashboard" className="text-2xl font-bold text-indigo-600 tracking-tight">
                     SyncSpace
                 </Link>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 relative">
+                    {/* Notifications Icon and Badge */}
+                    <button 
+                        onClick={onToggleNotifications} 
+                        className="p-2 rounded-full text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors relative"
+                    >
+                        <FiBell size={24} />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
+                        )}
+                    </button>
                     <Link to="/profile" className="flex items-center gap-3 group">
                         <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-600 hidden sm:block transition-colors">
                             {user?.username}
@@ -48,6 +106,9 @@ const Header = ({ user, onLogout }) => (
     </header>
 );
 
+/**
+ * @description A card representing a single workspace.
+ */
 const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite, onUpdate, onDelete }) => {
     const inviteLink = `${window.location.origin}/join/${workspace._id}`;
 
@@ -58,8 +119,8 @@ const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite, onUpdate, onDelete })
                     {workspace.name}
                 </h3>
                 <p className="text-slate-500 mt-2 text-sm flex items-center gap-2">
-                    <FiUsers size={14} className="text-indigo-500" />
-                    <span>{workspace.memberCount} Members</span>
+                  <FiUsers size={14} className="text-indigo-500" />
+                  <span>{workspace.memberCount} Members</span>
                 </p>
             </div>
             <div className="border-t border-slate-200 bg-slate-50/50 p-4 flex justify-between items-center rounded-b-xl">
@@ -72,14 +133,14 @@ const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite, onUpdate, onDelete })
                 {isAdmin && (
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => onUpdate(workspace)}
+                            onClick={(e) => { e.preventDefault(); onUpdate(workspace); }}
                             className="text-slate-500 hover:text-blue-500 transition"
                             title="Update name"
                         >
                             <FiEdit size={16} />
                         </button>
                         <button
-                            onClick={() => onDelete(workspace)}
+                            onClick={(e) => { e.preventDefault(); onDelete(workspace); }}
                             className="text-slate-500 hover:text-red-500 transition"
                             title="Delete workspace"
                         >
@@ -103,6 +164,9 @@ const WorkspaceCard = ({ workspace, isAdmin, onCopyInvite, onUpdate, onDelete })
     );
 };
 
+/**
+ * @description Animated toast notification for user feedback.
+ */
 const Toast = ({ message, type, show }) => {
     const [isVisible, setIsVisible] = useState(false);
 
@@ -121,7 +185,7 @@ const Toast = ({ message, type, show }) => {
     const errorStyles = 'bg-red-500 border-red-600';
 
     return (
-        <div
+        <div 
             className={`fixed top-5 right-5 z-[100] flex items-center p-4 rounded-lg shadow-2xl text-white border-2 transition-all duration-300 ease-in-out
                 ${type === 'success' ? successStyles : errorStyles}
                 ${show ? 'transform translate-y-0 opacity-100' : 'transform -translate-y-5 opacity-0'}`}
@@ -132,6 +196,9 @@ const Toast = ({ message, type, show }) => {
     );
 };
 
+/**
+ * @description Panel for joining or creating workspaces.
+ */
 const ActionPanel = ({ onJoin, onAdminCreate, isAdmin }) => {
     const [inviteLink, setInviteLink] = useState("");
     const [workspaceName, setWorkspaceName] = useState("");
@@ -189,6 +256,9 @@ const ActionPanel = ({ onJoin, onAdminCreate, isAdmin }) => {
     );
 };
 
+/**
+ * @description A grid of skeleton loaders for the workspace cards.
+ */
 const WorkspaceGridSkeleton = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(3)].map((_, i) => (
@@ -202,6 +272,9 @@ const WorkspaceGridSkeleton = () => (
     </div>
 );
 
+/**
+ * @description A message shown when the user has no workspaces.
+ */
 const EmptyState = () => (
     <div className="text-center py-16 border-2 border-dashed border-slate-300 rounded-lg bg-white">
         <FiInbox className="mx-auto h-12 w-12 text-slate-400" />
@@ -210,11 +283,13 @@ const EmptyState = () => (
     </div>
 );
 
+
 // =================================================================================
 // --- Main Dashboard Component ---
 // =================================================================================
 
 function Dashboard() {
+    // --- State Management ---
     const [workspaces, setWorkspaces] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -228,6 +303,7 @@ function Dashboard() {
     const [workspaceToUpdate, setWorkspaceToUpdate] = useState(null);
     const [newWorkspaceName, setNewWorkspaceName] = useState("");
 
+    // --- Side Effects ---
     const fetchDashboardData = useCallback(async (token) => {
         try {
             const [userRes, workspacesRes] = await Promise.all([
@@ -255,6 +331,7 @@ function Dashboard() {
         fetchDashboardData(token);
     }, [fetchDashboardData, navigate]);
 
+    // --- Helper Functions & Event Handlers ---
     const showToast = (message, type = 'error') => {
         setToast({ show: true, message, type });
         setTimeout(() => setToast({ show: false, message: '', type: 'error' }), 3000);
@@ -286,11 +363,13 @@ function Dashboard() {
             showToast("Please paste a valid invite link.");
             return;
         }
+
         const inviteCode = inviteLink.split("/").pop();
         if (!inviteCode) {
             showToast("Invalid invite link format.");
             return;
         }
+
         try {
             const res = await axios.post(
                 `${API_BASE}/workspaces/join/${inviteCode}`, {},
@@ -405,7 +484,7 @@ function Dashboard() {
             <Toast message={toast.message} type={toast.type} show={toast.show} />
 
             <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-                <ActionPanel
+                <ActionPanel 
                     onJoin={handleJoinByLink}
                     onAdminCreate={handleCreateWorkspace}
                     isAdmin={user?.role === "admin"}
