@@ -7,6 +7,8 @@ import { Server as SocketIOServer } from "socket.io";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from 'url';
+
+// Import models
 import Document from "./models/Document.js";
 import Message from "./models/Message.js";
 
@@ -45,22 +47,34 @@ import messageRoutes from "./routes/message.js";
 import profileRoutes from "./routes/profile.js";
 import fileRoutes from "./routes/file.js";
 import documentRoutes from "./routes/document.js";
+import notificationRoutes from "./routes/notifications.js"; // ✅ 1. IMPORTED NOTIFICATION ROUTES
 
 app.use("/api/auth", authRoutes);
 app.use("/api/workspaces", workspaceRoutes);
-app.use("/api/tasks", taskRoutes(io));
+app.use("/api/tasks", taskRoutes(io)); // Pass io to routes that need it
 app.use("/api/messages", messageRoutes(io));
 app.use("/api/profile", profileRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/documents", documentRoutes);
+app.use("/api/notifications", notificationRoutes); // ✅ 2. USING NOTIFICATION ROUTES
 
-// Socket.IO connection event
+// ✅ 3. ADDED LOGIC TO TRACK USERS FOR REAL-TIME NOTIFICATIONS
+const userSockets = new Map();
+
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
+
+  // When a user provides their ID, map it to their socket
+  socket.on('register_user', (userId) => {
+    userSockets.set(userId, socket.id);
+    console.log(`User ${userId} registered with socket ${socket.id}`);
+  });
+
   socket.on("join_workspace", (workspaceId) => {
     socket.join(workspaceId);
     console.log(`User ${socket.id} joined workspace ${workspaceId}`);
   });
+  
   socket.on("send_message", async (messageData) => {
     try {
       const newMessage = new Message({
@@ -92,6 +106,13 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
+    // Clean up map on disconnect
+    for (let [userId, socketId] of userSockets.entries()) {
+      if (socketId === socket.id) {
+        userSockets.delete(userId);
+        break;
+      }
+    }
   });
 });
 
@@ -106,3 +127,6 @@ mongoose
     );
   })
   .catch((err) => console.error("❌ MongoDB connection failed:", err));
+
+// Export io and userSockets so they can be used to send notifications from other files
+export { io, userSockets };
